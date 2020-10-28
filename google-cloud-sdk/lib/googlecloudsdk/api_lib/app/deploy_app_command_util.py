@@ -22,6 +22,7 @@ from __future__ import unicode_literals
 import datetime
 import hashlib
 import os
+import time
 
 from apitools.base.py import exceptions as apitools_exceptions
 
@@ -87,8 +88,11 @@ def _BuildDeploymentManifest(upload_dir, source_files, bucket_ref, tmp_dir):
   # Normal application files.
   for rel_path in source_files:
     full_path = os.path.join(upload_dir, rel_path)
+    start_time = time.time()
+    log.info('Calculating sha1 hash for %s' % full_path)
     sha1_hash = file_utils.Checksum.HashSingleFile(full_path,
                                                    algorithm=hashlib.sha1)
+    log.info('Done hashing for %s. Took %s' % (full_path, time.time() - start_time))
     manifest_path = '/'.join([bucket_url, sha1_hash])
     manifest[_FormatForManifest(rel_path)] = {
         'sourceUrl': manifest_path,
@@ -97,6 +101,7 @@ def _BuildDeploymentManifest(upload_dir, source_files, bucket_ref, tmp_dir):
 
   # Source context files. These are temporary files which indicate the current
   # state of the source repository (git, cloud repo, etc.)
+  log.info('Beginning CreateContextFiles')
   context_files = context_util.CreateContextFiles(
       tmp_dir, None, source_dir=upload_dir)
   for context_file in context_files:
@@ -106,8 +111,11 @@ def _BuildDeploymentManifest(upload_dir, source_files, bucket_ref, tmp_dir):
       log.debug('Source context already exists. Using the existing file.')
       continue
     else:
+      start_time = time.time()
+      log.info('Calculating sha1 hash for %s' % context_file)
       sha1_hash = file_utils.Checksum.HashSingleFile(context_file,
                                                      algorithm=hashlib.sha1)
+      log.info('Done hashing for %s. Took %s' % (context_file, time.time() - start_time))
       manifest_path = '/'.join([bucket_url, sha1_hash])
       manifest[_FormatForManifest(rel_path)] = {
           'sourceUrl': manifest_path,
@@ -205,7 +213,10 @@ def _BuildFileUploadMap(manifest, source_dir, bucket_ref, tmp_dir,
       full_path = os.path.join(tmp_dir, rel_path)
     # Perform this check when creating the upload map, so we catch too-large
     # files that have already been uploaded
+    start_time = time.time()
+    log.info('Calculating size for %s' % full_path)
     size = os.path.getsize(encoding.Encode(full_path, encoding='utf-8'))
+    log.info('Done calculating size for %s. Took %s' % (full_path, time.time() - start_time))
     if max_file_size and size > max_file_size:
       raise LargeFileError(full_path, size, max_file_size)
 
@@ -301,8 +312,10 @@ def CopyFilesToCodeBucket(upload_dir, source_files,
   # Collect a list of files to upload, indexed by the SHA so uploads are
   # deduplicated.
   with file_utils.TemporaryDirectory() as tmp_dir:
+    log.info('Beginning _BuildDeploymentManifest')
     manifest = _BuildDeploymentManifest(
         upload_dir, source_files, bucket_ref, tmp_dir)
+    log.info('Beginning _BuildFileUploadMap')
     files_to_upload = _BuildFileUploadMap(
         manifest, upload_dir, bucket_ref, tmp_dir, max_file_size)
     _UploadFilesThreads(files_to_upload, bucket_ref)
