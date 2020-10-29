@@ -425,7 +425,7 @@ class ServiceDeployer(object):
     service_info = service.service_info
     self._ValidateRuntime(service_info)
 
-    log.info('Beginning GetSourceFiles')
+    log.status.Print('Beginning GetSourceFiles')
     source_files = source_files_util.GetSourceFiles(
         service.upload_dir,
         service_info.parsed.skip_files.regex,
@@ -434,13 +434,13 @@ class ServiceDeployer(object):
         service_info.env, service.source, ignore_file=ignore_file)
 
     # Tar-based upload for flex
-    log.info('Beginning _PossiblyBuildAndPush')
+    log.status.Print('Beginning _PossiblyBuildAndPush')
     build = self._PossiblyBuildAndPush(
         new_version, service_info, service.upload_dir, source_files,
         image, code_bucket_ref, gcr_domain, flex_image_build_option)
 
     # Manifest-based incremental source upload for all envs
-    log.info('Beginning _PossiblyUploadFiles')
+    log.status.Print('Beginning _PossiblyUploadFiles')
     manifest = self._PossiblyUploadFiles(
         image, service_info, service.upload_dir, source_files,
         code_bucket_ref, flex_image_build_option)
